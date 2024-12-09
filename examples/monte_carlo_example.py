@@ -5,7 +5,9 @@ import matplotlib.pyplot as plt
 
 sys.path.append(str(Path(__file__).parent.parent))
 
-from src.analysis.monte_carlo import MonteCarloAnalysis, ParameterDistribution
+from src.analysis.distributions import ParameterDistribution
+from src.analysis.monte_carlo import MonteCarloAnalysis
+from src.analysis.plots import plot_parameter_distributions
 
 
 def get_parameters():
@@ -86,6 +88,9 @@ def get_parameters():
 if __name__ == "__main__":
     analysis = get_parameters()
     analysis.run_analysis()
+
+    # plot the parameter distributions
+    plot_parameter_distributions(analysis.parameter_distributions)
 
     # Print summary statistics
     results_summary = analysis.get_results_summary()

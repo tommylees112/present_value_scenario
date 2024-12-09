@@ -1,6 +1,6 @@
 """Core career change financial model."""
 
-from typing import Dict, NamedTuple
+from typing import Dict, NamedTuple, Union
 
 import numpy as np
 import pandas as pd
@@ -18,9 +18,16 @@ class CareerModelResult(NamedTuple):
 class CareerModel:
     """Financial model for analyzing career change decisions."""
 
-    def __init__(self, params: CareerModelParams):
-        """Initialize model with parameters."""
-        self.params = params
+    def __init__(self, params: Union[CareerModelParams, Dict]):
+        """Initialize model with parameters.
+
+        Args:
+            params: Either a CareerModelParams object or a dictionary of parameters
+        """
+        if isinstance(params, dict):
+            self.params = CareerModelParams.from_dict(params)
+        else:
+            self.params = params
         self.params.validate()
 
     def calculate(self) -> CareerModelResult:
@@ -121,13 +128,17 @@ class CareerModel:
         }
 
 
-def calculate_career_paths(**kwargs) -> CareerModelResult:
+def calculate_career_paths(
+    params: Union[CareerModelParams, Dict, None] = None, **kwargs
+) -> CareerModelResult:
     """
     Unified interface for career path calculations.
 
     Parameters:
     -----------
-    **kwargs: Keyword arguments matching CareerModelParams fields
+    params: Either a CareerModelParams object, dictionary of parameters, or None
+    **kwargs: Additional keyword arguments to override params if it's a dictionary,
+             or used as parameters if params is None
 
     Returns:
     --------
@@ -135,6 +146,13 @@ def calculate_career_paths(**kwargs) -> CareerModelResult:
     - cash_flows: DataFrame with year-by-year cash flows
     - summary: Dictionary of key metrics
     """
-    params = CareerModelParams.from_dict(kwargs)
+    if params is None:
+        params = kwargs
+    elif isinstance(params, dict):
+        params = {**params, **kwargs}  # Override with any provided kwargs
+
+    if isinstance(params, dict):
+        params = CareerModelParams.from_dict(params)
+
     model = CareerModel(params)
     return model.calculate()

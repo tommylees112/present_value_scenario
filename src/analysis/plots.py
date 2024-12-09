@@ -3,11 +3,14 @@
 from typing import Dict, Optional
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
+import scipy.stats as stats
 import seaborn as sns
 from matplotlib.ticker import FuncFormatter
 
 from ..utils.plot_utils import thousands_formatter
+from .distributions import ParameterDistribution
 
 
 def plot_earnings_comparison(
@@ -165,6 +168,144 @@ def plot_risk_analysis(risk_metrics: Dict, figsize: tuple = (10, 6)) -> plt.Figu
     ax2.bar(metrics.keys(), metrics.values(), color="blue", alpha=0.6)
     ax2.set_title("Financial Impact")
     ax2.yaxis.set_major_formatter(FuncFormatter(thousands_formatter))
+
+    plt.tight_layout()
+    return fig
+
+
+def plot_parameter_distributions(
+    parameter_distributions: Dict[str, ParameterDistribution],
+) -> plt.Figure:
+    """Create a side-by-side visualization of parameter distributions."""
+    n_params = len(parameter_distributions)
+    fig, axes = plt.subplots(1, n_params, figsize=(5 * n_params, 5))
+
+    # Handle single parameter case
+    if n_params == 1:
+        axes = [axes]
+
+    fig.suptitle("Probability Distributions of Model Parameters", fontsize=12, y=1.05)
+
+    # Generate x-ranges for each distribution
+    for ax, (param_name, dist) in zip(axes, parameter_distributions.items()):
+        if dist.distribution_type in ["normal", "truncated_normal"]:
+            # Generate points for normal/truncated normal distribution
+            x = np.linspace(
+                dist.params["mean"] - 6 * dist.params["std"],
+                dist.params["mean"] + 6 * dist.params["std"],
+                1000,
+            )
+            if dist.distribution_type == "truncated_normal":
+                a = (
+                    dist.params.get("min", -np.inf) - dist.params["mean"]
+                ) / dist.params["std"]
+                b = (
+                    dist.params.get("max", np.inf) - dist.params["mean"]
+                ) / dist.params["std"]
+                y = stats.truncnorm.pdf(
+                    x, a, b, loc=dist.params["mean"], scale=dist.params["std"]
+                )
+            else:
+                y = stats.norm.pdf(x, dist.params["mean"], dist.params["std"])
+
+            # Plot the distribution
+            ax.plot(x, y, "b-", lw=2, label="PDF")
+
+            # Add vertical lines for mean and standard deviations
+            ax.axvline(dist.params["mean"], color="r", linestyle="--", label="Mean")
+            ax.axvline(
+                dist.params["mean"] + dist.params["std"],
+                color="g",
+                linestyle=":",
+                label="±1 SD",
+            )
+            ax.axvline(
+                dist.params["mean"] - dist.params["std"], color="g", linestyle=":"
+            )
+
+            # Add annotations
+            ax.text(
+                0.05,
+                0.95,
+                f"Mean: {dist.params['mean']:,.2f}\nSD: {dist.params['std']:,.2f}",
+                transform=ax.transAxes,
+                verticalalignment="top",
+                bbox=dict(facecolor="white", alpha=0.8),
+            )
+
+            # Set wider x limits (4 standard deviations)
+            margin = 4 * dist.params["std"]
+            ax.set_xlim(dist.params["mean"] - margin, dist.params["mean"] + margin)
+
+        elif dist.distribution_type == "lognormal":
+            # Generate points for lognormal distribution
+            x = np.linspace(
+                0, np.exp(dist.params["mu"] + 6 * dist.params["sigma"]), 1000
+            )
+            y = stats.lognorm.pdf(
+                x, s=dist.params["sigma"], scale=np.exp(dist.params["mu"])
+            )
+
+            # Plot the distribution
+            ax.plot(x, y, "b-", lw=2, label="PDF")
+
+            # Calculate and plot key statistics
+            median = np.exp(dist.params["mu"])
+            mode = np.exp(dist.params["mu"] - dist.params["sigma"] ** 2)
+            mean = np.exp(dist.params["mu"] + dist.params["sigma"] ** 2 / 2)
+
+            ax.axvline(median, color="r", linestyle="--", label="Median")
+            ax.axvline(mode, color="g", linestyle=":", label="Mode")
+
+            # Add annotations
+            ax.text(
+                0.05,
+                0.95,
+                f"Median: {median:,.0f}\nMode: {mode:,.0f}\nMean: {mean:,.0f}",
+                transform=ax.transAxes,
+                verticalalignment="top",
+                bbox=dict(facecolor="white", alpha=0.8),
+            )
+
+        elif dist.distribution_type == "uniform":
+            # Generate points for uniform distribution
+            margin = 0.2 * (dist.params["max"] - dist.params["min"])
+            x = np.linspace(
+                dist.params["min"] - margin,
+                dist.params["max"] + margin,
+                1000,
+            )
+            y = stats.uniform.pdf(
+                x, dist.params["min"], dist.params["max"] - dist.params["min"]
+            )
+
+            # Plot the distribution
+            ax.plot(x, y, "b-", lw=2, label="PDF")
+
+            # Add vertical lines for bounds
+            ax.axvline(dist.params["min"], color="r", linestyle="--", label="Bounds")
+            ax.axvline(dist.params["max"], color="r", linestyle="--")
+
+            # Add annotations
+            mean = (dist.params["min"] + dist.params["max"]) / 2
+            ax.text(
+                0.05,
+                0.95,
+                f"Min: {dist.params['min']:,.0f}\nMax: {dist.params['max']:,.0f}\nMean: {mean:,.0f}",
+                transform=ax.transAxes,
+                verticalalignment="top",
+                bbox=dict(facecolor="white", alpha=0.8),
+            )
+
+        # Customize each subplot
+        ax.set_title(f"{dist.name}\n({param_name})")
+        ax.set_xlabel("Value")
+        ax.set_ylabel("Probability Density")
+        ax.grid(True, alpha=0.3)
+        ax.legend()
+
+        # Remove scientific notation from axis
+        ax.ticklabel_format(style="plain", axis="x")
 
     plt.tight_layout()
     return fig

@@ -1,6 +1,5 @@
 """Monte Carlo simulation for career change analysis."""
 
-from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 import matplotlib.pyplot as plt
@@ -8,97 +7,12 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from matplotlib.ticker import FuncFormatter
-from scipy import stats
 
 from ..core.career_model import calculate_career_paths
 from ..utils.plot_utils import thousands_formatter
 from .base import CareerAnalysis
-
-ALLOWED_DISTRIBUTIONS = {
-    "normal": {"required_params": ["mean", "std"]},
-    "truncated_normal": {"required_params": ["mean", "std", "min", "max"]},
-    "lognormal": {"required_params": ["mu", "sigma"]},
-    "uniform": {"required_params": ["min", "max"]},
-}
-
-
-@dataclass
-class ParameterDistribution:
-    """
-    Represents a probability distribution for a model parameter.
-
-    Parameters:
-    -----------
-    name: Name of the parameter
-    distribution_type: The statistical distribution to use
-    params: Dictionary of parameters specific to the distribution type
-
-    Allowed Distributions:
-    ---------------------
-    normal: requires 'mean' and 'std' parameters
-    truncated_normal: requires 'mean', 'std', 'min', and 'max' parameters
-    lognormal: requires 'mu' and 'sigma' parameters
-    uniform: requires 'min' and 'max' parameters
-    """
-
-    name: str
-    distribution_type: str
-    params: Dict[str, float]
-
-    def __post_init__(self):
-        """Validate the distribution type and parameters after initialization."""
-        if self.distribution_type not in ALLOWED_DISTRIBUTIONS:
-            raise ValueError(
-                f"Unsupported distribution type: {self.distribution_type}. "
-                f"Allowed types are: {list(ALLOWED_DISTRIBUTIONS.keys())}"
-            )
-
-        required_params = ALLOWED_DISTRIBUTIONS[self.distribution_type][
-            "required_params"
-        ]
-        missing_params = [
-            param for param in required_params if param not in self.params
-        ]
-        if missing_params:
-            raise ValueError(
-                f"Missing required parameters for {self.distribution_type} distribution: "
-                f"{missing_params}. Required parameters are: {required_params}. "
-                f"Provided parameters: {list(self.params.keys())}"
-            )
-
-    def sample(self, size: int = 1) -> np.ndarray:
-        """Generate random samples from the distribution."""
-        if self.distribution_type == "normal":
-            return stats.norm.rvs(
-                loc=self.params["mean"], scale=self.params["std"], size=size
-            )
-        elif self.distribution_type == "truncated_normal":
-            # Calculate the standardized bounds
-            a = (self.params["min"] - self.params["mean"]) / self.params["std"]
-            b = (self.params["max"] - self.params["mean"]) / self.params["std"]
-            return stats.truncnorm.rvs(
-                a=a,
-                b=b,
-                loc=self.params["mean"],
-                scale=self.params["std"],
-                size=size,
-            )
-        elif self.distribution_type == "lognormal":
-            return stats.lognorm.rvs(
-                s=self.params["sigma"], scale=np.exp(self.params["mu"]), size=size
-            )
-        elif self.distribution_type == "uniform":
-            return stats.uniform.rvs(
-                loc=self.params["min"],
-                scale=self.params["max"] - self.params["min"],
-                size=size,
-            )
-        else:
-            # This should never happen due to __post_init__ validation
-            raise ValueError(
-                f"Unsupported distribution type: {self.distribution_type}. "
-                f"Allowed types are: {list(ALLOWED_DISTRIBUTIONS.keys())}"
-            )
+from .distributions import ParameterDistribution
+from .plots import plot_parameter_distributions
 
 
 class MonteCarloAnalysis(CareerAnalysis):
@@ -126,13 +40,18 @@ class MonteCarloAnalysis(CareerAnalysis):
         random_seed: Random seed for reproducibility
         """
         super().__init__(fixed_parameters, time_horizons, course_costs)
+
+        # Create random state if seed provided
+        if random_seed is not None:
+            random_state = np.random.RandomState(random_seed)
+            # Set random state for all parameter distributions
+            for dist in parameter_distributions.values():
+                dist.random_state = random_state
+
         self.parameter_distributions = parameter_distributions
         self.n_simulations = n_simulations
         self.simulation_results = {}
         self.summary_statistics = None
-
-        if random_seed is not None:
-            np.random.seed(random_seed)
 
     def run_simulation(self):
         """Run Monte Carlo simulations for each scenario."""
@@ -171,9 +90,11 @@ class MonteCarloAnalysis(CareerAnalysis):
                     }
                     simulation_results.append(result_dict)
 
-                self.simulation_results[key] = pd.DataFrame(simulation_results)
+                # Create DataFrame
+                df = pd.DataFrame(simulation_results)
+                self.simulation_results[key] = df
 
-        self._calculate_summary_statistics()
+            self._calculate_summary_statistics()
 
     def run_analysis(self, **kwargs) -> Dict[str, Any]:
         """Run the Monte Carlo analysis."""
@@ -267,14 +188,19 @@ class MonteCarloAnalysis(CareerAnalysis):
         plt.gca().xaxis.set_major_formatter(FuncFormatter(thousands_formatter))
         return plt.gcf()
 
-    def plot_parameter_sensitivity(self, metric: str):
-        """Create a tornado plot showing parameter sensitivity."""
-        if not self.simulation_results:
-            raise ValueError("Must run simulation before plotting")
+    def calculate_parameter_sensitivities(
+        self, metric: str
+    ) -> Dict[str, Dict[str, float]]:
+        """Calculate parameter sensitivities using multiple metrics.
 
-        parameter_impacts = {}
+        Returns a dictionary with different sensitivity measures:
+        - correlation: Pearson correlation coefficient
+        - elasticity: % change in output per % change in input
+        - impact: Absolute change in output for a 10% change in input
+        """
+        sensitivities = {}
 
-        # Combine all results
+        # Combine all results for analysis
         all_values = []
         all_parameters = {name: [] for name in self.parameter_distributions.keys()}
 
@@ -283,50 +209,92 @@ class MonteCarloAnalysis(CareerAnalysis):
             metric_values = df[metric.lower()].values
             all_values.extend(metric_values)
 
-            # For each simulation result, store the parameter values
             for param_name in self.parameter_distributions.keys():
-                param_values = df[param_name].values  # Now we know these columns exist
+                param_values = df[param_name].values
                 all_parameters[param_name].extend(param_values)
 
-        # Calculate correlation for each parameter
+        all_values = np.array(all_values)
+
         for param_name, param_values in all_parameters.items():
             param_values = np.array(param_values)
-            all_values_array = np.array(all_values)
-
-            # Ensure arrays are the same length
-            min_len = min(len(param_values), len(all_values_array))
-            param_values = param_values[:min_len]
-            all_values_array = all_values_array[:min_len]
 
             # Calculate correlation
-            correlation = np.corrcoef(param_values, all_values_array)[0, 1]
-            parameter_impacts[param_name] = correlation
+            correlation = np.corrcoef(param_values, all_values)[0, 1]
 
-        if not parameter_impacts:
-            raise ValueError("No parameter impacts could be calculated")
+            # Calculate elasticity (% change in output per % change in input)
+            # Using linear regression on log-transformed values
+            valid_mask = (param_values > 0) & (all_values != 0)  # Avoid log(0)
+            if valid_mask.any():
+                log_params = np.log(param_values[valid_mask])
+                log_values = np.log(np.abs(all_values[valid_mask]))
+                elasticity = np.polyfit(log_params, log_values, 1)[0]
+            else:
+                elasticity = np.nan
 
-        # Create tornado plot
-        plt.figure(figsize=(10, 6))
-        y_pos = np.arange(len(parameter_impacts))
+            # Calculate impact of 10% change
+            param_mean = np.mean(param_values)
+            param_shift = param_mean * 0.1  # 10% shift
 
-        # Sort by absolute impact
-        sorted_impacts = sorted(
-            parameter_impacts.items(), key=lambda x: abs(x[1]), reverse=True
+            # Estimate impact using local gradient
+            gradient = np.polyfit(param_values, all_values, 1)[0]
+            impact = gradient * param_shift
+
+            sensitivities[param_name] = {
+                "correlation": correlation,
+                "elasticity": elasticity,
+                "impact_10pct": impact,
+                "mean_value": param_mean,
+            }
+
+        return sensitivities
+
+    def plot_parameter_sensitivity(self, metric: str):
+        """Create enhanced tornado plot showing parameter sensitivities."""
+        if not self.simulation_results:
+            raise ValueError("Must run simulation before plotting")
+
+        sensitivities = self.calculate_parameter_sensitivities(metric)
+
+        # Create figure with multiple subplots
+        fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(15, 6))
+
+        # Sort parameters by absolute correlation
+        sorted_params = sorted(
+            sensitivities.keys(),
+            key=lambda x: abs(sensitivities[x]["correlation"]),
+            reverse=True,
         )
-        names, impacts = zip(*sorted_impacts)
 
-        # Create horizontal bar plot
-        plt.barh(y_pos, impacts)
-        plt.yticks(y_pos, [self.parameter_distributions[name].name for name in names])
-        plt.xlabel(f"Correlation with {metric}")
-        plt.title("Parameter Sensitivity Analysis")
-        plt.grid(True)
-        sns.despine()
+        # Plot correlations
+        correlations = [sensitivities[p]["correlation"] for p in sorted_params]
+        colors = ["red" if c < 0 else "green" for c in correlations]
+        ax1.barh(sorted_params, correlations, color=colors)
+        ax1.set_title("Parameter Correlations")
+        ax1.set_xlabel("Correlation Coefficient")
 
-        return plt.gcf()
+        # Plot elasticities
+        elasticities = [sensitivities[p]["elasticity"] for p in sorted_params]
+        colors = ["red" if e < 0 else "green" for e in elasticities]
+        ax2.barh(sorted_params, elasticities, color=colors)
+        ax2.set_title(
+            "Parameter Elasticities\n(% change in output per % change in input)"
+        )
+        ax2.set_xlabel("Elasticity")
+
+        # Plot 10% impact
+        impacts = [sensitivities[p]["impact_10pct"] for p in sorted_params]
+        colors = ["red" if i < 0 else "green" for i in impacts]
+        ax3.barh(sorted_params, impacts, color=colors)
+        ax3.set_title("Impact of 10% Parameter Increase")
+        ax3.set_xlabel(f"Change in {metric}")
+        ax3.ticklabel_format(style="plain", axis="x")
+
+        plt.tight_layout()
+        return fig
 
     def visualize_results(self, **kwargs):
         """Create visualizations of Monte Carlo simulation results."""
         self.plot_distribution("total_nominal_cost")
         self.plot_parameter_sensitivity("total_nominal_cost")
+        plot_parameter_distributions(self.parameter_distributions)
         plt.show()
