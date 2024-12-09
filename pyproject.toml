@@ -1,0 +1,16 @@
+[project]
+name = "present-value-scenario"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "ipython>=8.30.0",
+    "loguru>=0.7.3",
+    "matplotlib>=3.9.3",
+    "numpy>=2.2.0",
+    "pandas>=2.2.3",
+    "pyright>=1.1.390",
+    "scipy>=1.14.1",
+    "seaborn>=0.13.2",
+]
