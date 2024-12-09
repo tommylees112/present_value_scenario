@@ -8,6 +8,11 @@ import seaborn as sns
 from matplotlib.ticker import FuncFormatter
 
 
+# Formatter function to display y-axis in thousands
+def thousands_formatter(x, pos):
+    return f"£{x*1e-3:,.0f}k"
+
+
 def calculate_career_paths(
     # Current career path parameters
     current_starting_salary: float,
@@ -125,10 +130,6 @@ def calculate_career_paths(
 def plot_earnings_comparison(results):
     """Create visualization of earnings paths and differences"""
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10))
-
-    # Formatter function to display y-axis in thousands
-    def thousands_formatter(x, pos):
-        return f"£{x*1e-3:,.0f}k"
 
     # Plot cumulative earnings
     ax1.plot(
