@@ -1,7 +1,7 @@
 [project]
-name = "present-value-scenario"
+name = "career_analysis"
 version = "0.1.0"
-description = "Add your description here"
+description = "Career change financial analysis tools"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -11,6 +11,7 @@ dependencies = [
     "numpy>=2.2.0",
     "pandas>=2.2.3",
     "pyright>=1.1.390",
+    "pytest>=8.3.4",
     "scipy>=1.14.1",
     "seaborn>=0.13.2",
     "tqdm>=4.67.1",

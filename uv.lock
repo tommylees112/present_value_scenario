@@ -11,6 +11,37 @@ wheels = [
 ]
 
 [[package]]
+name = "career-analysis"
+version = "0.1.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "ipython" },
+    { name = "loguru" },
+    { name = "matplotlib" },
+    { name = "numpy" },
+    { name = "pandas" },
+    { name = "pyright" },
+    { name = "pytest" },
+    { name = "scipy" },
+    { name = "seaborn" },
+    { name = "tqdm" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "ipython", specifier = ">=8.30.0" },
+    { name = "loguru", specifier = ">=0.7.3" },
+    { name = "matplotlib", specifier = ">=3.9.3" },
+    { name = "numpy", specifier = ">=2.2.0" },
+    { name = "pandas", specifier = ">=2.2.3" },
+    { name = "pyright", specifier = ">=1.1.390" },
+    { name = "pytest", specifier = ">=8.3.4" },
+    { name = "scipy", specifier = ">=1.14.1" },
+    { name = "seaborn", specifier = ">=0.13.2" },
+    { name = "tqdm", specifier = ">=4.67.1" },
+]
+
+[[package]]
 name = "colorama"
 version = "0.4.6"
 source = { registry = "https://pypi.org/simple" }
@@ -110,6 +141,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/f6/c8/c5aed715d3816977451d2eaf4ab3aaad48e8d8a3e25d28a4d29a07b0f841/fonttools-4.55.2-cp313-cp313-win32.whl", hash = "sha256:81ccd2b3a420b8050c7d9db3be0555d71662973b3ef2a1d921a2880b58957db8", size = 2149187 },
     { url = "https://files.pythonhosted.org/packages/c4/07/36df0ee4ba78b8eb4880b8bbc0d96cc97b98d358ff4a74b469bda851f63e/fonttools-4.55.2-cp313-cp313-win_amd64.whl", hash = "sha256:d559eb1744c7dcfa90ae60cb1a4b3595e898e48f4198738c321468c01180cd83", size = 2195113 },
     { url = "https://files.pythonhosted.org/packages/69/94/c4d8dfe26a971e00e34df99b46e9518425f59918c8993830e904171e21f9/fonttools-4.55.2-py3-none-any.whl", hash = "sha256:8e2d89fbe9b08d96e22c7a81ec04a4e8d8439c31223e2dc6f2f9fc8ff14bdf9f", size = 1100792 },
+]
+
+[[package]]
+name = "iniconfig"
+version = "2.0.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/d7/4b/cbd8e699e64a6f16ca3a8220661b5f83792b3017d0f79807cb8708d33913/iniconfig-2.0.0.tar.gz", hash = "sha256:2d91e135bf72d31a410b17c16da610a82cb55f6b0477d1a902134b24a455b8b3", size = 4646 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ef/a6/62565a6e1cf69e10f5727360368e451d4b7f58beeac6173dc9db836a5b46/iniconfig-2.0.0-py3-none-any.whl", hash = "sha256:b6a85871a79d2e3b22d2d1b94ac2824226a63c6b741c88f7ae975f18b6778374", size = 5892 },
 ]
 
 [[package]]
@@ -396,32 +436,12 @@ wheels = [
 ]
 
 [[package]]
-name = "present-value-scenario"
-version = "0.1.0"
-source = { virtual = "." }
-dependencies = [
-    { name = "ipython" },
-    { name = "loguru" },
-    { name = "matplotlib" },
-    { name = "numpy" },
-    { name = "pandas" },
-    { name = "pyright" },
-    { name = "scipy" },
-    { name = "seaborn" },
-    { name = "tqdm" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "ipython", specifier = ">=8.30.0" },
-    { name = "loguru", specifier = ">=0.7.3" },
-    { name = "matplotlib", specifier = ">=3.9.3" },
-    { name = "numpy", specifier = ">=2.2.0" },
-    { name = "pandas", specifier = ">=2.2.3" },
-    { name = "pyright", specifier = ">=1.1.390" },
-    { name = "scipy", specifier = ">=1.14.1" },
-    { name = "seaborn", specifier = ">=0.13.2" },
-    { name = "tqdm", specifier = ">=4.67.1" },
+name = "pluggy"
+version = "1.5.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/96/2d/02d4312c973c6050a18b314a5ad0b3210edb65a906f868e31c111dede4a6/pluggy-1.5.0.tar.gz", hash = "sha256:2cffa88e94fdc978c4c574f15f9e59b7f4201d439195c3715ca9e2486f1d0cf1", size = 67955 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/88/5f/e351af9a41f866ac3f1fac4ca0613908d9a41741cfcf2228f4ad853b697d/pluggy-1.5.0-py3-none-any.whl", hash = "sha256:44e1ad92c8ca002de6377e165f3e0f1be63266ab4d554740532335b9d75ea669", size = 20556 },
 ]
 
 [[package]]
@@ -483,6 +503,21 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/ba/42/1e0392f35dd275f9f775baf7c86407cef7f6a0d9b8e099a93e5422a7e571/pyright-1.1.390.tar.gz", hash = "sha256:aad7f160c49e0fbf8209507a15e17b781f63a86a1facb69ca877c71ef2e9538d", size = 21950 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/43/20/3f492ca789fb17962ad23619959c7fa642082621751514296c58de3bb801/pyright-1.1.390-py3-none-any.whl", hash = "sha256:ecebfba5b6b50af7c1a44c2ba144ba2ab542c227eb49bc1f16984ff714e0e110", size = 18579 },
+]
+
+[[package]]
+name = "pytest"
+version = "8.3.4"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "iniconfig" },
+    { name = "packaging" },
+    { name = "pluggy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/05/35/30e0d83068951d90a01852cb1cef56e5d8a09d20c7f511634cc2f7e0372a/pytest-8.3.4.tar.gz", hash = "sha256:965370d062bce11e73868e0335abac31b4d3de0e82f4007408d242b4f8610761", size = 1445919 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/11/92/76a1c94d3afee238333bc0a42b82935dd8f9cf8ce9e336ff87ee14d9e1cf/pytest-8.3.4-py3-none-any.whl", hash = "sha256:50e16d954148559c9a74109af1eaf0c945ba2d8f30f0a3d3335edde19788b6f6", size = 343083 },
 ]
 
 [[package]]
