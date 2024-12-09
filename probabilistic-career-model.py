@@ -282,8 +282,5 @@ if __name__ == "__main__":
     print(report)
 
     # Create visualizations
-    analysis.plot_cumprob_VaR("Total Nominal Cost")
-    plt.show()
-
     analysis.plot_scenario_comparison()
     plt.show()

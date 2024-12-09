@@ -66,6 +66,8 @@ def calculate_career_paths(
     retraining_mask = results["year"] < course_duration_years
     results.loc[retraining_mask, "retrain_career_nominal"] = part_time_earnings
     results.loc[retraining_mask, "retraining_costs"] = course_annual_cost
+    # Fill NaN values with 0 for non-training period
+    results["retraining_costs"] = results["retraining_costs"].fillna(0)
 
     # After retraining period
     working_years_after_training = results["year"] - course_duration_years
@@ -83,6 +85,7 @@ def calculate_career_paths(
     # Calculate various metrics
     for career in ["immediate_career", "retrain_career"]:
         # Nominal values
+        results[f"{career}_nominal"] = results[f"{career}_nominal"]
         results[f"{career}_nominal_cumulative"] = results[f"{career}_nominal"].cumsum()
 
         # Real values (inflation adjusted)
@@ -97,15 +100,22 @@ def calculate_career_paths(
         )
         results[f"{career}_pv_cumulative"] = results[f"{career}_pv"].cumsum()
 
+    # Calculate net earnings for retraining path (including costs)
+    results["retrain_net_nominal"] = results["retrain_career_nominal"] - results.get(
+        "retraining_costs", 0
+    )
+    results["retrain_net_nominal_cumulative"] = results["retrain_net_nominal"].cumsum()
+
     # Calculate differences between paths
     for metric in ["nominal", "real", "pv"]:
         results[f"earnings_diff_{metric}"] = (
-            results[f"retrain_career_{metric}"] - results[f"immediate_career_{metric}"]
+            results[f"retrain_career_{metric}"]
+            - results[f"immediate_career_{metric}"]
+            - results.get("retraining_costs", 0)
         )
-        results[f"earnings_diff_{metric}_cumulative"] = (
-            results[f"retrain_career_{metric}_cumulative"]
-            - results[f"immediate_career_{metric}_cumulative"]
-        )
+        results[f"earnings_diff_{metric}_cumulative"] = results[
+            f"earnings_diff_{metric}"
+        ].cumsum()
 
     # Calculate key summary metrics
     summary_metrics = {
@@ -135,13 +145,13 @@ def plot_earnings_comparison(results):
     ax1.plot(
         results["year"],
         results["immediate_career_nominal_cumulative"],
-        label=f"Immediate Career Path: {params['current_starting_salary']/1e3} -- {params['current_growth_rate']*100}%",
+        label=f"Immediate Career Path: £{params['current_starting_salary']/1e3:.0f}k -- {params['current_growth_rate']*100}%",
         linewidth=2,
     )
     ax1.plot(
         results["year"],
         results["retrain_career_nominal_cumulative"],
-        label=f"Retraining Path: {params['new_career_starting_salary']/1e3} -- {params['new_career_growth_rate']*100}%",
+        label=f"Retraining Path: £{params['new_career_starting_salary']/1e3:.0f}k -- {params['new_career_growth_rate']*100}%",
         linewidth=2,
     )
     ax1.set_title("Cumulative Earnings Over Time")
@@ -195,6 +205,42 @@ if __name__ == "__main__":
 
     # Calculate results
     results, summary = calculate_career_paths(**params)
+
+    from src.core.career_model import calculate_career_paths as calculate_career_paths2
+
+    params.pop("discount_rate")
+    results2, summary2 = calculate_career_paths2(**params)
+
+    # Debug calculations
+    print("\nDebugging nominal cost calculations:")
+    print("\nfam1.py calculation:")
+    print(f"Total Nominal Cost: {summary['Total Nominal Cost']:,.2f}")
+    print(
+        f"Final cumulative earnings difference: {results['earnings_diff_nominal_cumulative'].iloc[-1]:,.2f}"
+    )
+
+    print("\ncore model calculation:")
+    print(f"Total Nominal Cost: {summary2['total_nominal_cost']:,.2f}")
+    current_sum = results2["current_career"].sum()
+    new_sum = results2["new_career"].sum()
+    costs_sum = results2["course_costs"].sum()
+    print(f"Current career sum: {current_sum:,.2f}")
+    print(f"New career sum: {new_sum:,.2f}")
+    print(f"Course costs sum: {costs_sum:,.2f}")
+    print(f"Calculated difference: {current_sum - new_sum + costs_sum:,.2f}")
+
+    # Compare year by year
+    print("\nYear by year comparison of first 5 years:")
+    comparison_df = pd.DataFrame(
+        {
+            "year": results["year"][:5],
+            "fam1_immediate": results["immediate_career_nominal"][:5],
+            "fam1_retrain": results["retrain_career_nominal"][:5],
+            "core_current": results2["current_career"][:5],
+            "core_new": results2["new_career"][:5],
+        }
+    )
+    print(comparison_df)
 
     plot_earnings_comparison(results)
     plt.show()
