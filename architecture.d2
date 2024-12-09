@@ -1,0 +1,121 @@
+# Core Components
+core: {
+  career_model: CareerModel {
+    shape: class
+  }
+  
+  career_model_params: CareerModelParams {
+    shape: class
+  }
+  
+  career_model -> career_model_params: uses
+}
+
+# Analysis Components
+analysis: {
+  # Base class
+  base: CareerAnalysis {
+    shape: class
+  }
+
+  # Analysis implementations
+  monte_carlo: MonteCarloAnalysis {
+    shape: class
+  }
+  
+  parameter_space: ParameterSpaceAnalysis {
+    shape: class
+  }
+
+  probabilistic: ProbabilisticAnalysis {
+    shape: class
+  }
+
+  risk: RiskAnalyzer {
+    shape: class
+  }
+  
+  distributions: ParameterDistribution {
+    shape: class
+  }
+  
+  plots: Plotting {
+    shape: class
+  }
+
+  # Inheritance relationships
+  base <- monte_carlo: extends
+  base <- parameter_space: extends
+  base <- probabilistic: extends
+
+  # Usage relationships
+  monte_carlo -> distributions: uses
+  monte_carlo -> plots: generates
+  probabilistic -> distributions: uses
+  parameter_space -> plots: generates
+  risk -> core.career_model: analyzes
+}
+
+# Utils Components
+utils: {
+  plot_utils: PlotUtils {
+    shape: class
+  }
+  utils: Utils {
+    shape: class
+  }
+
+  plot_utils <- analysis.plots: uses
+}
+
+# Scripts and Examples
+examples: {
+  monte_carlo_example: MonteCarloExample {
+    shape: rectangle
+  }
+  parameter_space_example: ParameterSpaceExample {
+    shape: rectangle
+  }
+  probabilistic_example: ProbabilisticExample {
+    shape: rectangle
+  }
+  simple_financial_model: SimpleExample {
+    shape: rectangle
+  }
+}
+
+scripts: {
+  monte_carlo_script: Script {
+    shape: rectangle
+  }
+  parameter_space_script: Script {
+    shape: rectangle
+  }
+}
+
+# Tests
+tests: {
+  test_career_model: Tests {
+    shape: rectangle
+  }
+  
+  test_monte_carlo: Tests {
+    shape: rectangle
+  }
+}
+
+# Relationships between components
+analysis.monte_carlo -> core.career_model: simulates
+analysis.parameter_space -> core.career_model: analyzes
+analysis.probabilistic -> core.career_model: analyzes
+
+examples.monte_carlo_example -> analysis.monte_carlo: uses
+examples.parameter_space_example -> analysis.parameter_space: uses
+examples.probabilistic_example -> analysis.probabilistic: uses
+examples.simple_financial_model -> analysis.risk: uses
+
+scripts.monte_carlo_script -> analysis.monte_carlo: executes
+scripts.parameter_space_script -> analysis.parameter_space: executes
+
+tests.test_career_model -> core.career_model: validates
+tests.test_monte_carlo -> analysis.monte_carlo: validates 

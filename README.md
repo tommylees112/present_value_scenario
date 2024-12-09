@@ -29,6 +29,9 @@ This toolkit helps you model and visualize the financial impact of a career chan
 │ ├── parameter_space_example.py
 │ └── probabilistic_example.py
 ```
+
+![](file.png)
+
 ## 🚀 How It Works
 
 ### Core Model
