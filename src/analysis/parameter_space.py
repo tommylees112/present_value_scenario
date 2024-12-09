@@ -34,73 +34,96 @@ class ParameterSpaceAnalysis(CareerAnalysis):
         current_salary_range: Tuple[float, float, int],
         new_salary_range: Tuple[float, float, int],
     ) -> Tuple[np.ndarray, np.ndarray]:
-        """Create a grid of parameter combinations to evaluate."""
+        """Create a grid of parameter combinations to evaluate.
+
+        Parameters:
+        -----------
+        current_salary_range: (min, max, n_points) for current salary
+        new_salary_range: (min, max, n_points) for new career salary
+
+        Returns:
+        --------
+        Tuple of meshgrids where:
+        - First grid represents current salaries
+        - Second grid represents new career salaries
+        """
         # Create parameter ranges
         self.current_salaries = np.linspace(*current_salary_range)
         self.new_salaries = np.linspace(*new_salary_range)
 
-        # Create 2D grids
-        self.current_grid, self.new_grid = np.meshgrid(
+        # Create 2D grids - swap the order to match the expected visualization
+        self.new_grid, self.current_grid = np.meshgrid(
             self.current_salaries, self.new_salaries
         )
 
         return self.current_grid, self.new_grid
 
     def run_analysis(self):
-        """Run the analysis for all parameter combinations."""
+        """Run the analysis for all parameter combinations.
+
+        The analysis calculates nominal costs where:
+        - Positive costs indicate LOSING money after career change
+        - Negative costs indicate MAKING money after career change
+
+        nominal_cost = current_career_earnings - new_career_earnings + course_costs
+        """
         if self.current_grid is None or self.new_grid is None:
             raise ValueError("Must call create_parameter_grid before running analysis")
 
-        # Store results for each time horizon and course cost combination
-        all_results = {}
+        self.results = {
+            (years, cost): self._analyze_for_horizon_and_cost(years, cost)
+            for years in self.time_horizons
+            for cost in self.course_costs
+        }
 
-        for years in self.time_horizons:
-            for cost in self.course_costs:
-                n_current = len(self.current_salaries)
-                n_new = len(self.new_salaries)
+    def _analyze_for_horizon_and_cost(
+        self, years: int, cost: float
+    ) -> Dict[str, np.ndarray]:
+        """Analyze parameter combinations for a specific time horizon and course cost."""
+        n_current = len(self.current_salaries)
+        n_new = len(self.new_salaries)
 
-                # Initialize arrays to store results
-                costs = np.zeros((n_current, n_new))
-                break_even = np.zeros((n_current, n_new), dtype=bool)
-                years_to_break_even = np.full((n_current, n_new), np.nan)
+        # Initialize arrays to store results
+        costs = np.zeros((n_current, n_new))
+        break_even = np.zeros((n_current, n_new), dtype=bool)
+        years_to_break_even = np.full((n_current, n_new), np.nan)
 
-                # Create all parameter combinations
-                param_combinations = list(
-                    itertools.product(range(n_current), range(n_new))
-                )
+        # Create all parameter combinations
+        param_combinations = itertools.product(range(n_current), range(n_new))
 
-                # Run analysis for each parameter combination with progress bar
-                for i, j in tqdm(
-                    param_combinations,
-                    desc=f"Calculating {years} year horizon, £{cost:,} annual cost",
-                    leave=True,
-                ):
-                    params = {
-                        **self.fixed_parameters,
-                        "current_starting_salary": self.current_salaries[i],
-                        "new_career_starting_salary": self.new_salaries[j],
-                        "analysis_years": years,
-                        "course_annual_cost": cost,
-                    }
+        # Run analysis for each parameter combination with progress bar
+        for i, j in tqdm(
+            param_combinations,
+            desc=f"Calculating {years} year horizon, £{cost:,} annual cost",
+            leave=True,
+        ):
+            params = self._build_params(i, j, years, cost)
+            _, summary = calculate_career_paths(**params)
 
-                    _, summary = calculate_career_paths(**params)
+            # Store results
+            costs[i, j] = summary["total_nominal_cost"]
+            break_even[i, j] = summary["break_even"]
+            years_to_break_even[i, j] = (
+                summary["years_to_break_even"]
+                if summary["years_to_break_even"] is not None
+                else np.nan
+            )
 
-                    # Store results
-                    costs[i, j] = summary["total_nominal_cost"]
-                    break_even[i, j] = summary["break_even"]
-                    years_to_break_even[i, j] = (
-                        summary["years_to_break_even"]
-                        if summary["years_to_break_even"] is not None
-                        else np.nan
-                    )
+        return {
+            "costs": costs,
+            "break_even": break_even,
+            "years_to_break_even": years_to_break_even,
+        }
 
-                all_results[(years, cost)] = {
-                    "costs": costs,
-                    "break_even": break_even,
-                    "years_to_break_even": years_to_break_even,
-                }
-
-        self.results = all_results
+    def _build_params(self, i: int, j: int, years: int, cost: float) -> Dict[str, Any]:
+        """Build parameters for a specific combination of indices, years, and cost."""
+        return {
+            **self.fixed_parameters,
+            "current_starting_salary": self.current_salaries[i],
+            "new_career_starting_salary": self.new_salaries[j],
+            "analysis_years": years,
+            "course_annual_cost": cost,
+        }
 
     def calculate_breakeven(self, costs: np.ndarray) -> List[Dict[str, float]]:
         """Calculate break-even points for a given cost matrix."""
@@ -147,12 +170,20 @@ class ParameterSpaceAnalysis(CareerAnalysis):
         return pd.DataFrame(summary_data)
 
     def calculate_breakeven_ratio(self, costs: np.ndarray) -> float:
-        """Calculate average break-even ratio for a given cost matrix."""
+        """Calculate average break-even ratio for a given cost matrix.
+
+        Returns:
+        --------
+        float: Average ratio of (new_career_salary / current_salary) at break-even points
+        """
         break_even_points = []
         for i in range(len(self.current_salaries)):
-            cost_column = costs[:, i]
-            if np.any(cost_column < 0):
+            cost_column = costs[
+                :, i
+            ]  # For each current salary, look at all new salaries
+            if np.any(cost_column < 0):  # Find where it becomes profitable
                 break_even_idx = np.where(cost_column < 0)[0][0]
+                # Calculate new_salary / current_salary ratio
                 break_even_ratio = (
                     self.new_salaries[break_even_idx] / self.current_salaries[i]
                 )
@@ -183,8 +214,8 @@ class ParameterSpaceAnalysis(CareerAnalysis):
         elif n_costs == 1:
             axes = axes.reshape(1, -1)
 
-        # Create meshgrid for plotting
-        X, Y = np.meshgrid(self.current_salaries, self.new_salaries)
+        # Create meshgrid for plotting - use the correct orientation
+        Y, X = np.meshgrid(self.current_salaries, self.new_salaries)  # Swapped order
 
         # Create a plot for each combination
         for i, cost in enumerate(self.course_costs):
@@ -216,25 +247,28 @@ class ParameterSpaceAnalysis(CareerAnalysis):
                 ax.set_title(f"{years} Year Horizon\nAnnual Cost: £{cost:,}")
 
                 # Add annotations for regions
-                if np.any(costs < 0):
+                if np.any(costs > 0):
                     ax.text(
                         0.75,
                         0.05,
-                        "Profitable\nCareer Change",
-                        transform=ax.transAxes,
-                        color="green",
-                        fontweight="bold",
-                        verticalalignment="bottom",
-                    )
-                if np.any(costs > 0):
-                    ax.text(
-                        0.05,
-                        0.95,
                         "Unprofitable\nCareer Change",
                         transform=ax.transAxes,
                         color="red",
                         fontweight="bold",
+                        verticalalignment="bottom",
+                        size=10 * ind_plot_scale,
+                    )
+
+                if np.any(costs < 0):
+                    ax.text(
+                        0.05,
+                        0.95,
+                        "Profitable\nCareer Change",
+                        transform=ax.transAxes,
+                        color="green",
+                        fontweight="bold",
                         verticalalignment="top",
+                        size=10 * ind_plot_scale,
                     )
 
                 # Calculate and add break-even ratio
