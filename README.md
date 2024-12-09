@@ -57,7 +57,8 @@ The toolkit includes sophisticated risk assessment tools:
 ```python
 from src.core.career_model import CareerModel
 from src.analysis.plots import plot_earnings_comparison
-Define your career change scenario
+
+# Define your career change scenario
 params = {
 "current_starting_salary": 45000,
 "current_growth_rate": 0.03,
@@ -67,10 +68,12 @@ params = {
 "course_annual_cost": 9000,
 "part_time_earnings": 10000
 }
-Run the analysis
+
+# Run the analysis
 model = CareerModel(params)
 results = model.calculate_earnings(years=30)
-Visualize the results
+
+# Visualize the results
 fig = plot_earnings_comparison(results, params)
 fig.savefig('career_comparison.png')
 
