@@ -123,9 +123,29 @@ class ProbabilisticAnalysis(CareerAnalysis):
         for param_name, results_df in self.sensitivity_results.items():
             # Calculate elasticity (% change in output / % change in input)
             baseline_value = self.fixed_parameters.get(param_name, 0)
-            baseline_cost = results_df[
-                results_df["value"].abs() == abs(baseline_value)
-            ]["total_cost"].iloc[0]
+
+            # Calculate the absolute difference and sort by it
+            results_df["closeness"] = (results_df["value"] - baseline_value).abs()
+            sorted_results = results_df.sort_values(by="closeness")
+
+            tolerance = 1e-2
+            # Check if any values are within tolerance of baseline
+            closest_value = results_df["closeness"].min()
+            if closest_value > tolerance:
+                raise IndexError(
+                    f"No values found within {tolerance} of baseline {baseline_value} "
+                    f"for parameter {param_name}. Closest value was {closest_value:.3f} away."
+                )
+
+            # Get the closest match
+            if not sorted_results.empty:
+                baseline_cost = sorted_results["total_cost"].iloc[0]
+            else:
+                # Handle the case where no match is found
+                raise IndexError
+
+            # Drop the 'closeness' column if it's no longer needed
+            results_df.drop(columns="closeness", inplace=True)
 
             for years in self.time_horizons:
                 for cost in self.course_costs:
@@ -136,7 +156,7 @@ class ProbabilisticAnalysis(CareerAnalysis):
 
                     # Calculate elasticity using linear regression
                     x = subset["value"] / baseline_value
-                    y = subset["total_cost"] / baseline_cost
+                    y = -subset["total_cost"] / baseline_cost
                     slope, _ = np.polyfit(x, y, 1)
 
                     summaries.append(
