@@ -28,7 +28,7 @@ if __name__ == "__main__":
     career_model_result = CareerModel(params).calculate()
     df, summary = career_model_result
 
-    plot_earnings_comparison(df, params_dict)
+    plot_earnings_comparison(df, params_dict, display_breakeven=True)
 
     risk_analyzer = RiskAnalyzer(career_model_result)
 

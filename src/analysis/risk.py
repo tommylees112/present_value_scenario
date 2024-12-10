@@ -138,7 +138,8 @@ class RiskAnalyzer:
         """Calculate total opportunity cost during transition period.
 
         Returns:
-            float: The total opportunity cost, calculated as the sum of differences between current and new earnings.
+            float: The total opportunity cost, calculated as the sum of
+            differences between current and new earnings.
         """
         current_earnings = self.cash_flows["current_career"]
         new_total = self.cash_flows["new_career_total"]

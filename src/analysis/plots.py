@@ -18,6 +18,7 @@ def plot_earnings_comparison(
     params: Dict,
     title: Optional[str] = None,
     figsize: tuple = (12, 10),
+    display_breakeven: bool = False,
 ) -> plt.Figure:
     """Create visualization of earnings paths and differences.
 
@@ -35,7 +36,7 @@ def plot_earnings_comparison(
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=figsize)
 
     # Plot cumulative earnings
-    plot_cumulative_earnings(ax1, results, params)
+    plot_cumulative_earnings(ax1, results, params, display_breakeven=display_breakeven)
 
     # Plot earnings difference
     plot_earnings_difference(ax2, results)

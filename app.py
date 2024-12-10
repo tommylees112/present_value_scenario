@@ -28,33 +28,49 @@ def main():
     # ================================
     # SIDEBAR
     # ================================
+    enable_advanced = st.sidebar.checkbox("Enable Advanced Settings", value=False)
+
     # Sidebar for parameter inputs
     st.sidebar.header("Model Parameters")
     current_salary = st.sidebar.number_input(
-        "Current Starting Salary", value=75_000, key="current_salary"
+        "Current Starting Salary", value=75_000, key="current_salary", step=1e3
     )
     current_growth_rate = st.sidebar.slider(
-        "Current Growth Rate", 0.0, 0.1, 0.05, key="current_growth_rate"
+        "Current Growth Rate",
+        0.0,
+        0.1,
+        0.05,
+        key="current_growth_rate",
+        disabled=not enable_advanced,
     )
     retrain_start_date = st.sidebar.date_input(
         "Retrain Start Date",
         value=pd.to_datetime("2025-09-01"),
         key="retrain_start_date",
+        disabled=not enable_advanced,
     )
     course_duration_years = st.sidebar.number_input(
-        "Course Duration (Years)", value=3, key="course_duration_years"
+        "Course Duration (Years)",
+        value=3,
+        key="course_duration_years",
+        disabled=not enable_advanced,
     )
     course_annual_cost = st.sidebar.number_input(
-        "Course Annual Cost", value=25000, key="course_annual_cost"
+        "Course Annual Cost", value=32_500, key="course_annual_cost", step=1e2
     )
     part_time_earnings = st.sidebar.number_input(
-        "Part Time Earnings", value=10000, key="part_time_earnings"
+        "Part Time Earnings", value=0, key="part_time_earnings", step=1e3
     )
     new_career_salary = st.sidebar.number_input(
-        "New Career Starting Salary", value=100_000, key="new_career_salary"
+        "New Career Starting Salary", value=100_000, key="new_career_salary", step=1e3
     )
     new_growth_rate = st.sidebar.slider(
-        "New Career Growth Rate", 0.0, 0.1, 0.05, key="new_growth_rate"
+        "New Career Growth Rate",
+        0.0,
+        0.1,
+        0.05,
+        key="new_growth_rate",
+        disabled=not enable_advanced,
     )
     analysis_years = ANALYSIS_YEARS
 
