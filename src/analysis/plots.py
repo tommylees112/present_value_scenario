@@ -35,10 +35,10 @@ def plot_earnings_comparison(
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=figsize)
 
     # Plot cumulative earnings
-    _plot_cumulative_earnings(ax1, results, params)
+    plot_cumulative_earnings(ax1, results, params)
 
     # Plot earnings difference
-    _plot_earnings_difference(ax2, results)
+    plot_earnings_difference(ax2, results)
 
     if title:
         fig.suptitle(title, fontsize=14, y=1.02)
@@ -47,7 +47,9 @@ def plot_earnings_comparison(
     return fig
 
 
-def _plot_cumulative_earnings(ax, results: pd.DataFrame, params: Dict):
+def plot_cumulative_earnings(
+    ax, results: pd.DataFrame, params: Dict, display_breakeven: bool = False
+):
     """Plot cumulative earnings for both career paths."""
     # Calculate cumulative earnings
     current_cum = results["current_career"].cumsum()
@@ -77,6 +79,15 @@ def _plot_cumulative_earnings(ax, results: pd.DataFrame, params: Dict):
         label=f"Study Period ({study_years} years, £{(params['course_annual_cost']*study_years) - (params['part_time_earnings']*study_years):,.0f} total cost)",
     )
 
+    # add a grey line at the breakeven point
+    if display_breakeven:
+        # Find first year where new career earnings exceed current career earnings
+        try:
+            breakeven_year = results["year"][current_cum < new_cum].iloc[0]
+            ax.axvline(x=breakeven_year, color="gray", linestyle="--", linewidth=2)
+        except IndexError:
+            print("No breakeven point found")
+
     # Formatting
     # Add salary ratio to title
     salary_ratio = (
@@ -93,8 +104,11 @@ def _plot_cumulative_earnings(ax, results: pd.DataFrame, params: Dict):
     sns.despine(ax=ax)
 
 
-def _plot_earnings_difference(
-    ax, results: pd.DataFrame, display_years: list[int] = [3, 5, 10, 20, 29]
+def plot_earnings_difference(
+    ax,
+    results: pd.DataFrame,
+    display_years: list[int] = [3, 5, 10, 20, 29],
+    n_years: int = None,
 ):
     """Plot cumulative earnings difference between career paths."""
     # Calculate cumulative difference
@@ -111,6 +125,10 @@ def _plot_earnings_difference(
     ax.plot(results["year"], diff, color=color, linewidth=2)
     ax.axhline(y=0, color="k", linestyle="-", alpha=0.3)
 
+    # Add vertical line for n_years if specified
+    if n_years is not None:
+        ax.axvline(x=n_years, color="black", linestyle="--", linewidth=2)
+
     # Add annotations
     for ix, year in enumerate(display_years):
         value = output.query(f"year == {year}")["diff"].values[0]
@@ -118,7 +136,7 @@ def _plot_earnings_difference(
 
         ax.text(
             0.02,
-            0.98 - (0.035 * ix),
+            0.95 - (0.042 * ix),
             f"{year}Y Difference: £{value:,.0f}",
             transform=ax.transAxes,
             verticalalignment="top",

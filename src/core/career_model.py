@@ -100,18 +100,24 @@ class CareerModel:
             }
         )
 
-    def _calculate_summary_metrics(self, results: pd.DataFrame) -> Dict:
+    def _calculate_summary_metrics(
+        self, results: pd.DataFrame, n_years: int = None
+    ) -> Dict:
         """Calculate summary metrics from results."""
-        # Calculate total nominal cost
+        if n_years is None:
+            n_years = self.params.analysis_years
+
+        # Calculate total nominal cost for the given number of years
         nominal_cost = (
-            results["current_career"].sum()
-            - results["new_career"].sum()
-            + results["course_costs"].sum()
+            results["current_career"].iloc[:n_years].sum()
+            - results["new_career"].iloc[:n_years].sum()
+            + results["course_costs"].iloc[:n_years].sum()
         )
 
         # Calculate break-even metrics
         cumulative_difference = (
-            results["new_career_total"] - results["current_career"]
+            results["new_career_total"].iloc[:n_years]
+            - results["current_career"].iloc[:n_years]
         ).cumsum()
         breaks_even = cumulative_difference.iloc[-1] > 0
 
