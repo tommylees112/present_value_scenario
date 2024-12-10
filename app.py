@@ -34,9 +34,9 @@ def main():
     st.sidebar.header("Model Parameters")
     current_salary = st.sidebar.number_input(
         "Current Starting Salary",
-        value=75000.0,  # Changed to float
+        value=75_000.0,  # Changed to float
         key="current_salary",
-        step=1000.0,  # Changed to float
+        step=1_000.0,  # Changed to float
     )
     current_growth_rate = st.sidebar.slider(
         "Current Growth Rate",
@@ -61,7 +61,7 @@ def main():
     )
     course_annual_cost = st.sidebar.number_input(
         "Course Annual Cost",
-        value=32500.0,  # Changed to float
+        value=12_500.0,  # Changed to float
         key="course_annual_cost",
         step=100.0,  # Changed to float
     )
@@ -73,9 +73,9 @@ def main():
     )
     new_career_salary = st.sidebar.number_input(
         "New Career Starting Salary",
-        value=100000.0,  # Changed to float
+        value=100_000.0,  # Changed to float
         key="new_career_salary",
-        step=1000.0,  # Changed to float
+        step=1_000.0,  # Changed to float
     )
     new_growth_rate = st.sidebar.slider(
         "New Career Growth Rate",
