@@ -7,7 +7,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 from src.analysis.probabilistic import ProbabilisticAnalysis
 
 
-def run_example():
+def initialise_example():
     fixed_params = {
         "retrain_start_date": "2025-09-01",
         "course_duration_years": 3,
@@ -45,6 +45,12 @@ def run_example():
         parameter_distributions=parameter_distributions,
     )
 
+    return analysis
+
+
+if __name__ == "__main__":
+    analysis = initialise_example()
+
     analysis.run_analysis()
     results_summary = analysis.get_results_summary()
 
@@ -52,11 +58,20 @@ def run_example():
 
     if not results_summary.empty:
         print("\nParameter Sensitivities (Elasticities):")
+        """
+        Elasticity: This value measures the sensitivity of the total cost to changes in the parameter. It is calculated as the percentage change in the output (total cost) divided by the percentage change in the input (parameter value).
+        A negative elasticity (e.g., -16.961504 for current_growth_rate over 10 years) indicates that an increase in the parameter leads to a decrease in the total cost.
+        A positive elasticity (e.g., 0.823912 for new_career_growth_rate over 10 years) indicates that an increase in the parameter leads to an increase in the total cost.
+        """
         print(
             results_summary[["parameter", "time_horizon", "course_cost", "elasticity"]]
         )
 
         print("\nParameter Impact Ranges:")
+        """ 
+        Impact Range: This value represents the range of total costs observed when varying the parameter within its specified range. It is the difference between the maximum and minimum total costs observed.
+        Larger impact ranges indicate that the parameter has a significant effect on the total cost, suggesting high uncertainty or variability in outcomes due to changes in that parameter.
+        """
         print(
             results_summary[
                 ["parameter", "time_horizon", "course_cost", "impact_range"]
@@ -67,7 +82,3 @@ def run_example():
 
     analysis.visualize_results()
     plt.show()
-
-
-if __name__ == "__main__":
-    run_example()

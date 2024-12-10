@@ -8,6 +8,7 @@ from scipy import stats
 
 from ..core.career_model import calculate_career_paths
 from .base import CareerAnalysis
+from .metrics import calculate_parameter_sensitivities
 
 
 class ProbabilisticAnalysis(CareerAnalysis):
@@ -83,6 +84,14 @@ class ProbabilisticAnalysis(CareerAnalysis):
                     )
 
                     _, summary = calculate_career_paths(**params)
+
+                    # Calculate sensitivities
+                    sensitivity = calculate_parameter_sensitivities(
+                        np.array([value]),
+                        np.array([summary["total_nominal_cost"]]),
+                        param_name,
+                    )
+
                     results.append(
                         {
                             "parameter": param_name,
@@ -90,6 +99,7 @@ class ProbabilisticAnalysis(CareerAnalysis):
                             "time_horizon": years,
                             "course_cost": cost,
                             "total_cost": summary["total_nominal_cost"],
+                            **sensitivity,
                         }
                     )
 
@@ -121,56 +131,36 @@ class ProbabilisticAnalysis(CareerAnalysis):
         summaries = []
 
         for param_name, results_df in self.sensitivity_results.items():
-            # Calculate elasticity (% change in output / % change in input)
-            baseline_value = self.fixed_parameters.get(param_name, 0)
+            # Group by course cost before calculating elasticities
+            for (years, cost), group in results_df.groupby(
+                ["time_horizon", "course_cost"]
+            ):
+                # Calculate elasticity (% change in output / % change in input)
+                baseline_value = self.fixed_parameters.get(param_name, 0)
 
-            # Calculate the absolute difference and sort by it
-            results_df["closeness"] = (results_df["value"] - baseline_value).abs()
-            sorted_results = results_df.sort_values(by="closeness")
+                # Find the baseline cost for this specific course cost scenario
+                group["closeness"] = (group["value"] - baseline_value).abs()
+                baseline_cost = group.loc[group["closeness"].idxmin(), "total_cost"]
 
-            tolerance = 1e-2
-            # Check if any values are within tolerance of baseline
-            closest_value = results_df["closeness"].min()
-            if closest_value > tolerance:
-                raise IndexError(
-                    f"No values found within {tolerance} of baseline {baseline_value} "
-                    f"for parameter {param_name}. Closest value was {closest_value:.3f} away."
+                # Calculate relative changes instead of absolute
+                relative_costs = -group["total_cost"] / baseline_cost
+
+                # Calculate elasticity using linear regression
+                x = group["value"] / baseline_value
+                slope, _ = np.polyfit(x, relative_costs, 1)
+
+                summaries.append(
+                    {
+                        "parameter": param_name,
+                        "time_horizon": years,
+                        "course_cost": cost,
+                        "elasticity": slope,
+                        "min_impact": relative_costs.min() * baseline_cost,
+                        "max_impact": relative_costs.max() * baseline_cost,
+                        "impact_range": (relative_costs.max() - relative_costs.min())
+                        * abs(baseline_cost),
+                    }
                 )
-
-            # Get the closest match
-            if not sorted_results.empty:
-                baseline_cost = sorted_results["total_cost"].iloc[0]
-            else:
-                # Handle the case where no match is found
-                raise IndexError
-
-            # Drop the 'closeness' column if it's no longer needed
-            results_df.drop(columns="closeness", inplace=True)
-
-            for years in self.time_horizons:
-                for cost in self.course_costs:
-                    subset = results_df[
-                        (results_df["time_horizon"] == years)
-                        & (results_df["course_cost"] == cost)
-                    ]
-
-                    # Calculate elasticity using linear regression
-                    x = subset["value"] / baseline_value
-                    y = -subset["total_cost"] / baseline_cost
-                    slope, _ = np.polyfit(x, y, 1)
-
-                    summaries.append(
-                        {
-                            "parameter": param_name,
-                            "time_horizon": years,
-                            "course_cost": cost,
-                            "elasticity": slope,
-                            "min_impact": subset["total_cost"].min(),
-                            "max_impact": subset["total_cost"].max(),
-                            "impact_range": subset["total_cost"].max()
-                            - subset["total_cost"].min(),
-                        }
-                    )
 
         return pd.DataFrame(summaries)
 

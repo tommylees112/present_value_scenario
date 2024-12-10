@@ -12,7 +12,7 @@ from ..core.career_model import calculate_career_paths
 from ..utils.plot_utils import thousands_formatter
 from .base import CareerAnalysis
 from .distributions import ParameterDistribution
-from .plots import plot_parameter_distributions
+from .metrics import calculate_parameter_sensitivities, calculate_summary_statistics
 
 
 class MonteCarloAnalysis(CareerAnalysis):
@@ -106,16 +106,13 @@ class MonteCarloAnalysis(CareerAnalysis):
         summaries = []
 
         for (years, cost), df in self.simulation_results.items():
-            summary = {
-                "time_horizon": years,
-                "course_cost": cost,
-                "mean_cost": df["total_nominal_cost"].mean(),
-                "std_dev": df["total_nominal_cost"].std(),
-                "percentile_5": df["total_nominal_cost"].quantile(0.05),
-                "median": df["total_nominal_cost"].median(),
-                "percentile_95": df["total_nominal_cost"].quantile(0.95),
-                "probability_profitable": (df["total_nominal_cost"] < 0).mean(),
-            }
+            summary = calculate_summary_statistics(df["total_nominal_cost"].values)
+            summary.update(
+                {
+                    "time_horizon": years,
+                    "course_cost": cost,
+                }
+            )
             summaries.append(summary)
 
         self.summary_statistics = pd.DataFrame(summaries)
@@ -191,15 +188,7 @@ class MonteCarloAnalysis(CareerAnalysis):
     def calculate_parameter_sensitivities(
         self, metric: str
     ) -> Dict[str, Dict[str, float]]:
-        """Calculate parameter sensitivities using multiple metrics.
-
-        Returns a dictionary with different sensitivity measures:
-        - correlation: Pearson correlation coefficient
-        - elasticity: % change in output per % change in input
-        - impact: Absolute change in output for a 10% change in input
-        """
-        sensitivities = {}
-
+        """Calculate parameter sensitivities using multiple metrics."""
         # Combine all results for analysis
         all_values = []
         all_parameters = {name: [] for name in self.parameter_distributions.keys()}
@@ -213,38 +202,14 @@ class MonteCarloAnalysis(CareerAnalysis):
                 param_values = df[param_name].values
                 all_parameters[param_name].extend(param_values)
 
-        all_values = np.array(all_values)
-
+        # Calculate sensitivities for each parameter
+        sensitivities = {}
         for param_name, param_values in all_parameters.items():
-            param_values = np.array(param_values)
-
-            # Calculate correlation
-            correlation = np.corrcoef(param_values, all_values)[0, 1]
-
-            # Calculate elasticity (% change in output per % change in input)
-            # Using linear regression on log-transformed values
-            valid_mask = (param_values > 0) & (all_values != 0)  # Avoid log(0)
-            if valid_mask.any():
-                log_params = np.log(param_values[valid_mask])
-                log_values = np.log(np.abs(all_values[valid_mask]))
-                elasticity = np.polyfit(log_params, log_values, 1)[0]
-            else:
-                elasticity = np.nan
-
-            # Calculate impact of 10% change
-            param_mean = np.mean(param_values)
-            param_shift = param_mean * 0.1  # 10% shift
-
-            # Estimate impact using local gradient
-            gradient = np.polyfit(param_values, all_values, 1)[0]
-            impact = gradient * param_shift
-
-            sensitivities[param_name] = {
-                "correlation": correlation,
-                "elasticity": elasticity,
-                "impact_10pct": impact,
-                "mean_value": param_mean,
-            }
+            sensitivities[param_name] = calculate_parameter_sensitivities(
+                np.array(param_values),
+                np.array(all_values),
+                param_name,
+            )
 
         return sensitivities
 
@@ -296,5 +261,17 @@ class MonteCarloAnalysis(CareerAnalysis):
         """Create visualizations of Monte Carlo simulation results."""
         self.plot_distribution("total_nominal_cost")
         self.plot_parameter_sensitivity("total_nominal_cost")
-        plot_parameter_distributions(self.parameter_distributions)
-        plt.show()
+
+
+def calculate_summary_statistics(values: np.ndarray) -> Dict[str, float]:
+    """Calculate summary statistics for a set of values."""
+    return {
+        "mean_cost": np.mean(values),
+        "std_dev": np.std(values),
+        "median": np.median(values),
+        "percentile_5": np.percentile(values, 5),
+        "percentile_95": np.percentile(values, 95),
+        "probability_profitable": np.mean(
+            values < 0
+        ),  # Proportion of profitable outcomes
+    }
